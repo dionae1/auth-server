@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from core.auth import create_token, verify_token
+from core.jwt import create_token
 from db.sqlite import get_db
 from models.user import User
 from services.user import UserService
