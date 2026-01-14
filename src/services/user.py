@@ -1,6 +1,6 @@
 from core.auth import hash_password, verify_password
 from db.base import DatabaseInterface
-
+from models.user import User
 
 class UserService:
     def create(self, db: DatabaseInterface):
@@ -15,15 +15,15 @@ class UserService:
         """
         db.execute_query(query)
 
-    def get_user_by_id(self, user_id: int, db: DatabaseInterface):
+    def get_user_by_id(self, user_id: int, db: DatabaseInterface) -> User | None:
         query = "SELECT * FROM users WHERE id = ?"
         result = db.execute_query(query, (user_id,))
-        return result[0] if result else None
+        return User.get_instance(result[0]) if result else None
 
-    def get_user_by_username(self, username: str, db: DatabaseInterface):
+    def get_user_by_username(self, username: str, db: DatabaseInterface) -> User | None:
         query = "SELECT * FROM users WHERE username = ?"
         result = db.execute_query(query, (username,))
-        return result[0] if result else None
+        return User.get_instance(result[0]) if result else None
 
     def create_user(
         self, username: str, password: str, is_admin: bool, db: DatabaseInterface
@@ -35,20 +35,20 @@ class UserService:
     def validate_user_credentials(
         self, username: str, password: str, db: DatabaseInterface
     ) -> bool:
-        user_data = self.get_user_by_username(username, db)
-        if not user_data:
+        user = self.get_user_by_username(username, db)
+        if not user:
             return False
 
-        stored_password_hash = user_data[2]
+        stored_password_hash = user.password_hash
         return verify_password(password, stored_password_hash)
 
-    def update_token_version(self, user_id, db: DatabaseInterface) -> int:
+    def update_token_version(self, user_id: int, db: DatabaseInterface) -> int:
 
         user = self.get_user_by_id(user_id, db)
         if not user:
             raise Exception("User not found")
 
-        token_version = user[4] + 1
+        token_version = user.token_version + 1
 
         query = "UPDATE users SET token_version = ? WHERE id = ?"
         db.execute_query(query, (token_version, user_id))

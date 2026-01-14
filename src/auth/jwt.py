@@ -19,6 +19,17 @@ class JWTManager:
         token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
         return token
 
+    def create_refresh_token(self, user: User) -> str:
+        payload = {
+            "user_id": user.id,
+            "token_version": user.token_version,
+            "iat": datetime.now(timezone.utc),
+            "exp": datetime.now(timezone.utc) + timedelta(days=7),
+        }
+
+        token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        return token
+
     def verify_token(self, token: str) -> int:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -28,9 +39,8 @@ class JWTManager:
             raise Exception("Token has expired")
         except jwt.InvalidTokenError:
             raise Exception("Invalid token")
-        
+
     def revoke_token(self, user: User) -> None:
-        user.token_version += 1
         pass
 
     def get_token_version(self, token: str) -> int:

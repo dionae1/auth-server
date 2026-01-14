@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
 from auth.jwt import JWTManager
@@ -26,7 +26,7 @@ router = APIRouter(
 
 
 @router.post("/login", status_code=status.HTTP_200_OK)
-async def login(user_in: UserLogin, db=Depends(get_db)):
+async def login(response: Response, user_in: UserLogin, db=Depends(get_db)):
     user_service = UserService()
     jwt_manager = JWTManager()
 
@@ -39,25 +39,32 @@ async def login(user_in: UserLogin, db=Depends(get_db)):
             detail="Invalid username or password",
         )
 
-    user_data = user_service.get_user_by_username(username, db)
+    user = user_service.get_user_by_username(username, db)
 
-    if not user_data:
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
 
-    user = User.get_instance(user_data)
     token = jwt_manager.create_token(user)
+    refresh_token = jwt_manager.create_refresh_token(user)
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        max_age=7 * 24 * 60 * 60,
+    )
 
     return {"access_token": token, "token_type": "bearer"}
 
 
 @router.post("/logout")
-async def logout(user: User = Depends(get_current_user), db=Depends(get_db)):
+async def logout(response: Response, user: User = Depends(get_current_user), db=Depends(get_db)):
     user_service = UserService()
-
     user_service.update_token_version(user.id, db)
+    response.delete_cookie(key="refresh_token")
 
     return {"message": "Successfully logged out"}
 
@@ -81,16 +88,46 @@ async def register(user_in: UserRegister, db=Depends(get_db)):
 
 
 @router.post("/refresh")
-async def refresh_token():
-    pass
+async def refresh_token(request: Request, response: Response, db=Depends(get_db)):
+    jwt_manager = JWTManager()
+    user_service = UserService()
 
+    refresh_token_from_cookie = request.cookies.get("refresh_token")
 
-@router.get("/me")
-async def protected_route(user=Depends(get_current_user)):
+    if not refresh_token_from_cookie:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token missing",
+        )
+    
+    user_id = jwt_manager.verify_token(refresh_token_from_cookie)
+    user = user_service.get_user_by_id(user_id, db)
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
+    
+    refresh_token = jwt_manager.create_refresh_token(user)
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        max_age=7 * 24 * 60 * 60,
+    )
+
+
+@router.get("/me")
+async def protected_route(request: Request, user=Depends(get_current_user)):
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    print("Current User:", user.username)
+    print("Request Info:", request.method, request.url, request.cookies)
 
     return user

@@ -13,15 +13,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db=Depends(get_db)) ->
 
     try:
         user_id = jwt_manager.verify_token(token)
-        user_data = user_service.get_user_by_id(user_id, db)
+        user = user_service.get_user_by_id(user_id, db)
 
-        if not user_data:
+        if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
-        
-        user = User.get_instance(user_data)
 
         if user.token_version != jwt_manager.get_token_version(token):
             raise HTTPException(
