@@ -36,7 +36,7 @@ async def login(user_in: UserLogin, db=Depends(get_db)):
     if not user_service.validate_user_credentials(username, password, db):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password", 
+            detail="Invalid username or password",
         )
 
     user_data = user_service.get_user_by_username(username, db)
@@ -48,13 +48,18 @@ async def login(user_in: UserLogin, db=Depends(get_db)):
         )
 
     user = User.get_instance(user_data)
-    token = jwt_manager.create_token(user.id)
+    token = jwt_manager.create_token(user)
+
     return {"access_token": token, "token_type": "bearer"}
 
 
 @router.post("/logout")
-async def logout():
-    pass
+async def logout(user: User = Depends(get_current_user), db=Depends(get_db)):
+    user_service = UserService()
+
+    user_service.update_token_version(user.id, db)
+
+    return {"message": "Successfully logged out"}
 
 
 @router.post("/register")
@@ -81,13 +86,11 @@ async def refresh_token():
 
 
 @router.get("/me")
-async def protected_route(user_id = Depends(get_current_user), db=Depends(get_db)):
-    user_service = UserService()
-    user_data = user_service.get_user_by_id(user_id, db)
-    if not user_data:
+async def protected_route(user=Depends(get_current_user)):
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    user = User.get_instance(user_data)
+
     return user
