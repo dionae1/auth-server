@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 from auth.jwt import JWTManager
 from db.sqlite import get_db
-from api.dependencies import get_current_user
+from api.dependencies import jwt_get_current_user
 from models.user import User
 from services.user import UserService
 
@@ -61,7 +61,7 @@ async def login(response: Response, user_in: UserLogin, db=Depends(get_db)):
 
 
 @router.post("/logout")
-async def logout(response: Response, user: User = Depends(get_current_user), db=Depends(get_db)):
+async def logout(response: Response, user: User = Depends(jwt_get_current_user), db=Depends(get_db)):
     user_service = UserService()
     user_service.update_token_version(user.id, db)
     response.delete_cookie(key="refresh_token")
@@ -120,14 +120,5 @@ async def refresh_token(request: Request, response: Response, db=Depends(get_db)
 
 
 @router.get("/me")
-async def protected_route(request: Request, user=Depends(get_current_user)):
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
-
-    print("Current User:", user.username)
-    print("Request Info:", request.method, request.url, request.cookies)
-
-    return user
+async def protected_route(current_user: User = Depends(jwt_get_current_user)):
+    return current_user.username

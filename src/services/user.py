@@ -3,18 +3,6 @@ from db.base import DatabaseInterface
 from models.user import User
 
 class UserService:
-    def create(self, db: DatabaseInterface):
-        query = """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            password_hash TEXT NOT NULL,
-            is_admin BOOLEAN NOT NULL DEFAULT 0,
-            token_version INTEGER NOT NULL DEFAULT 0
-        )
-        """
-        db.execute_query(query)
-
     def get_user_by_id(self, user_id: int, db: DatabaseInterface) -> User | None:
         query = "SELECT * FROM users WHERE id = ?"
         result = db.execute_query(query, (user_id,))
