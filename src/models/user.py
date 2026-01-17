@@ -1,18 +1,48 @@
 from pydantic import BaseModel
 
 class User(BaseModel):
-    id: int
+    id: str
     username: str
-    password_hash: str
+    email: str
     is_admin: bool = False
-    token_version: int = 0
 
     @classmethod
     def get_instance(cls, data: dict):
         return cls(
             id=data[0],
             username=data[1],
-            password_hash=data[2],
+            email=data[2],
             is_admin=data[3],
-            token_version=data[4]
         )
+    
+
+class AuthCredentials(BaseModel):
+    id: str
+    user_id: str
+    provider: str | None = None
+    provider_user_id: str | None = None
+    password_hash: str | None = None
+    token_version: int
+
+    @classmethod
+    def get_instance(cls, data: dict):
+        return cls(
+            id=data[0],
+            user_id=data[1],
+            provider=data[2],
+            provider_user_id=data[3],
+            password_hash=data[4],
+            token_version=data[5],
+        )
+
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+
+class UserRegister(BaseModel):
+    username: str
+    email: str
+    password: str
+    is_admin: bool = False

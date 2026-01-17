@@ -4,18 +4,10 @@ from pydantic import BaseModel
 from auth.session import SessionManager
 from db.sqlite import get_db
 from api.dependencies import session_get_current_user
-from models.user import User
+from models.user import User, UserLogin, UserRegister
 from services.user import UserService
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
 
-
-class UserRegister(BaseModel):
-    username: str
-    password: str
-    is_admin: bool = False
 
 router = APIRouter(
     prefix="/session",
@@ -80,7 +72,7 @@ async def register(user_in: UserRegister, db=Depends(get_db)):
             detail="Username already exists",
         )
 
-    user_service.create_user(username=user_in.username, password=user_in.password, is_admin=user_in.is_admin, db=db)
+    user_service.create_user(username=user_in.username, email=user_in.email, password=user_in.password, is_admin=user_in.is_admin, db=db)
 
     return {"detail": "User registered successfully"}
 

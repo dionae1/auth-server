@@ -1,14 +1,14 @@
 import jwt
 from datetime import datetime, timedelta, timezone
 
-from models.user import User
+from models.user import User, AuthCredentials
 
 SECRET_KEY = "your_secret_key"
 ALGORITHM = "HS256"
 
 
 class JWTManager:
-    def create_token(self, user: User) -> str:
+    def create_token(self, user: AuthCredentials) -> str:
         payload = {
             "user_id": user.id,
             "token_version": user.token_version,
@@ -19,7 +19,7 @@ class JWTManager:
         token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
         return token
 
-    def create_refresh_token(self, user: User) -> str:
+    def create_refresh_token(self, user: AuthCredentials) -> str:
         payload = {
             "user_id": user.id,
             "token_version": user.token_version,
@@ -30,7 +30,7 @@ class JWTManager:
         token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
         return token
 
-    def verify_token(self, token: str) -> int:
+    def verify_token(self, token: str) -> str:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             return payload.get("user_id")
@@ -39,9 +39,6 @@ class JWTManager:
             raise Exception("Token has expired")
         except jwt.InvalidTokenError:
             raise Exception("Invalid token")
-
-    def revoke_token(self, user: User) -> None:
-        pass
 
     def get_token_version(self, token: str) -> int:
         try:

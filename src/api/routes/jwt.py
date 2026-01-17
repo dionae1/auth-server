@@ -4,24 +4,13 @@ from pydantic import BaseModel
 from auth.jwt import JWTManager
 from db.sqlite import get_db
 from api.dependencies import jwt_get_current_user
-from models.user import User
+from models.user import User, UserLogin, UserRegister
 from services.user import UserService
 
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-
-class UserRegister(BaseModel):
-    username: str
-    password: str
-    is_admin: bool = False
-
-
 router = APIRouter(
-    prefix="/auth",
-    tags=["auth"],
+    prefix="/jwt",
+    tags=["jwt"],
 )
 
 
@@ -47,8 +36,16 @@ async def login(response: Response, user_in: UserLogin, db=Depends(get_db)):
             detail="User not found",
         )
 
-    token = jwt_manager.create_token(user)
-    refresh_token = jwt_manager.create_refresh_token(user)
+    auth_credentials = user_service.get_user_auth_credentials(user.id, db)
+
+    if not auth_credentials:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve authentication credentials",
+        )
+
+    token = jwt_manager.create_token(auth_credentials)
+    refresh_token = jwt_manager.create_refresh_token(auth_credentials)
 
     response.set_cookie(
         key="refresh_token",
@@ -61,7 +58,9 @@ async def login(response: Response, user_in: UserLogin, db=Depends(get_db)):
 
 
 @router.post("/logout")
-async def logout(response: Response, user: User = Depends(jwt_get_current_user), db=Depends(get_db)):
+async def logout(
+    response: Response, user: User = Depends(jwt_get_current_user), db=Depends(get_db)
+):
     user_service = UserService()
     user_service.update_token_version(user.id, db)
     response.delete_cookie(key="refresh_token")
@@ -83,7 +82,13 @@ async def register(user_in: UserRegister, db=Depends(get_db)):
             detail="Username already exists",
         )
 
-    user_service.create_user(username, password, is_admin=is_admin, db=db)
+    user_service.create_user(
+        username=username,
+        email=user_in.email,
+        password=password,
+        is_admin=is_admin,
+        db=db,
+    )
     return {"message": "User registered successfully"}
 
 
@@ -99,7 +104,7 @@ async def refresh_token(request: Request, response: Response, db=Depends(get_db)
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token missing",
         )
-    
+
     user_id = jwt_manager.verify_token(refresh_token_from_cookie)
     user = user_service.get_user_by_id(user_id, db)
 
@@ -108,8 +113,16 @@ async def refresh_token(request: Request, response: Response, db=Depends(get_db)
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    
-    refresh_token = jwt_manager.create_refresh_token(user)
+
+    auth_credentials = user_service.get_user_auth_credentials(user.id, db)
+
+    if not auth_credentials:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve authentication credentials",
+        )
+
+    refresh_token = jwt_manager.create_refresh_token(auth_credentials)
 
     response.set_cookie(
         key="refresh_token",

@@ -21,10 +21,22 @@ class SQLiteDB(DatabaseInterface):
         self.cursor.execute("""
 
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id TEXT PRIMARY KEY,
             username TEXT NOT NULL,
-            password_hash TEXT NOT NULL,
-            is_admin BOOLEAN NOT NULL DEFAULT 0,
+            email TEXT NOT NULL UNIQUE,
+            is_admin BOOLEAN NOT NULL DEFAULT 0
+        );
+        
+        """)
+
+        self.cursor.execute("""
+                            
+        CREATE TABLE IF NOT EXISTS auth_credentials (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            provider TEXT,
+            provider_user_id TEXT,
+            password_hash TEXT,
             token_version INTEGER NOT NULL DEFAULT 0
         );
         
